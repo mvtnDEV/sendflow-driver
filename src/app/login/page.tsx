@@ -1,0 +1,136 @@
+'use client'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { getDrivers, loginWithPin } from '@/store'
+
+export default function LoginPage() {
+  const router  = useRouter()
+  const drivers = getDrivers()
+
+  const [selected, setSelected] = useState(drivers[0]?.id || '')
+  const [pin,      setPin]      = useState('')
+  const [error,    setError]    = useState('')
+  const [loading,  setLoading]  = useState(false)
+
+  function pressDigit(d: string) {
+    if (pin.length >= 4) return
+    const next = pin + d
+    setPin(next)
+    setError('')
+    if (next.length === 4) {
+      setTimeout(() => tryLogin(next), 120)
+    }
+  }
+
+  function tryLogin(code: string) {
+    setLoading(true)
+    // En demo: cualquier conductor puede usar el PIN de la lista
+    const result = loginWithPin(code)
+    if (result) {
+      router.replace('/pedidos')
+    } else {
+      setError('PIN incorrecto')
+      setPin('')
+      setLoading(false)
+    }
+  }
+
+  function pressBack() {
+    setPin(p => p.slice(0, -1))
+    setError('')
+  }
+
+  const KEYS = [
+    ['1','2','3'],
+    ['4','5','6'],
+    ['7','8','9'],
+    ['',  '0','⌫'],
+  ]
+
+  return (
+    <div style={{
+      height: '100dvh',
+      background: 'linear-gradient(160deg, #0B1628 0%, #162544 100%)',
+      display: 'flex', flexDirection: 'column',
+      paddingTop: 'calc(var(--sat) + 40px)',
+      paddingBottom: 'calc(var(--sab) + 24px)',
+      paddingLeft: 24, paddingRight: 24,
+    }}>
+      {/* Logo */}
+      <div style={{ textAlign:'center', marginBottom:40 }}>
+        <div style={{ width:64, height:64, borderRadius:18, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+          <svg width="34" height="34" viewBox="0 0 16 16" fill="white"><path d="M8 1L1 5v6l7 4 7-4V5L8 1zm0 2.2L13 6l-5 2.8L3 6l5-2.8zM2 7.2l5 2.8v4.6L2 11.8V7.2zm6 7.4V9.8l5-2.8v4.6L8 14.6z"/></svg>
+        </div>
+        <div style={{ fontSize:24, fontWeight:700, color:'white', letterSpacing:'-0.5px' }}>
+          Send<span style={{ color:'#38BDF8' }}>Flow</span>
+        </div>
+        <div style={{ fontSize:13, color:'rgba(255,255,255,.45)', marginTop:4 }}>App del Conductor</div>
+      </div>
+
+      {/* Selector de conductor */}
+      <div style={{ marginBottom:28 }}>
+        <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>
+          Conductor
+        </div>
+        <select value={selected} onChange={e => { setSelected(e.target.value); setPin(''); setError('') }}
+          style={{ width:'100%', padding:'14px 16px', background:'rgba(255,255,255,.08)', border:'1.5px solid rgba(255,255,255,.15)', borderRadius:14, fontSize:16, color:'white', outline:'none', fontFamily:'inherit', appearance:'none', WebkitAppearance:'none' }}>
+          {drivers.map(d => (
+            <option key={d.id} value={d.id} style={{ background:'#0B1628', color:'white' }}>{d.name}</option>
+          ))}
+        </select>
+      </div>
+
+      {/* Dots del PIN */}
+      <div style={{ textAlign:'center', marginBottom:24 }}>
+        <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', marginBottom:14, textTransform:'uppercase', letterSpacing:'.06em' }}>
+          Ingresa tu PIN
+        </div>
+        <div style={{ display:'flex', justifyContent:'center', gap:16 }}>
+          {[0,1,2,3].map(i => (
+            <div key={i} style={{
+              width: 18, height: 18, borderRadius: '50%',
+              background: i < pin.length ? '#38BDF8' : 'rgba(255,255,255,.2)',
+              transition: 'all .15s',
+              transform: i < pin.length ? 'scale(1.15)' : 'scale(1)',
+            }}/>
+          ))}
+        </div>
+        {error && (
+          <div style={{ marginTop:12, fontSize:14, color:'#F87171', fontWeight:500 }}>{error}</div>
+        )}
+      </div>
+
+      {/* Teclado numérico */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:320, margin:'0 auto', width:'100%' }}>
+        {KEYS.flat().map((key, i) => {
+          if (key === '') return <div key={i}/>
+          return (
+            <button key={i}
+              onClick={() => key === '⌫' ? pressBack() : pressDigit(key)}
+              disabled={loading}
+              style={{
+                height: 70, borderRadius: 16,
+                fontSize: key === '⌫' ? 22 : 26,
+                fontWeight: 600,
+                background: key === '⌫' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.1)',
+                border: '1px solid rgba(255,255,255,.1)',
+                color: 'white', cursor: 'pointer',
+                transition: 'transform .08s, background .1s',
+                WebkitTapHighlightColor: 'transparent',
+              }}
+              onTouchStart={e => { e.currentTarget.style.background = 'rgba(255,255,255,.22)' }}
+              onTouchEnd={e   => { e.currentTarget.style.background = key === '⌫' ? 'rgba(255,255,255,.06)' : 'rgba(255,255,255,.1)' }}
+            >
+              {key}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Demo hint */}
+      <div style={{ marginTop:24, textAlign:'center', fontSize:12, color:'rgba(255,255,255,.3)' }}>
+        Demo: PIN 1234 (Carlos) · 2222 (Pedro) · 3333 (Andrea)
+      </div>
+    </div>
+  )
+}
