@@ -39,19 +39,28 @@ export default function PedidoDetailPage({ params }: { params: { id: string } })
   const ref1 = useRef<HTMLInputElement>(null)
   const ref2 = useRef<HTMLInputElement>(null)
 
-  useEffect(() => {
-    const d = getDriverSession()
-    if (!d) { router.replace('/login'); return }
-    setToken(d.token)
-    setDriverId(d.id)
-    setDriverName(d.name)
-    fetchOrderByQr(params.id, d.token).then(o => {
-      if (!o) router.replace('/pedidos')
-      else setOrder(o)
-      setLoading(false)
-    })
-    if (wasScanned) setTimeout(() => setJustScanned(false), 3000)
-  }, [params.id])
+useEffect(() => {
+  const d = getDriverSession()
+  if (!d) { router.replace('/login'); return }
+  setToken(d.token)
+  setDriverId(d.id)
+  setDriverName(d.name)
+  
+  fetchOrderByQr(params.id, d.token).then(async o => {
+    if (!o) { router.replace('/pedidos'); return }
+    
+    // Si viene escaneado y está PENDING → recepcionar automáticamente
+    if (wasScanned && o.status === 'PENDING') {
+      const updated = await updateOrderStatus(o.id, 'RECEIVED', d.token, 'Recepcionado en bodega vía escaneo QR')
+      setOrder(updated ? { ...o, ...updated, events: updated.events || o.events } : o)
+    } else {
+      setOrder(o)
+    }
+    setLoading(false)
+  })
+  
+  if (wasScanned) setTimeout(() => setJustScanned(false), 3000)
+}, [params.id])
 
   async function doAction(status: OrderStatus) {
     if (status === 'DELIVERED') { setShowEv(true); return }
