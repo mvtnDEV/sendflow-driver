@@ -193,3 +193,80 @@ export const STATUS_BG_FULL: Record<OrderStatus, { bg: string; text: string }> =
   INCIDENT:   { bg: '#DC2626', text: 'white' },
   CANCELLED:  { bg: '#6B7280', text: 'white' },
 }
+// ─── Recepción en batch ───────────────────────────────────────────────────────
+
+export interface ScannedOrder {
+  id:           string
+  orderNumber:  string
+  customerName: string
+  addressStreet: string
+  addressComuna: string
+  storeName:    string
+  bultos:       number
+  status:       OrderStatus
+}
+
+const BODEGA_KEY = 'sf_bodega_pedidos'
+
+export function getBodegaPedidos(): ScannedOrder[] {
+  return load<ScannedOrder[]>(BODEGA_KEY, [])
+}
+
+export function addBodegaPedido(order: ScannedOrder) {
+  const current = getBodegaPedidos()
+  const exists  = current.find(o => o.id === order.id)
+  if (exists) return current
+  const updated = [...current, order]
+  save(BODEGA_KEY, updated)
+  return updated
+}
+
+export function removeBodegaPedido(id: string) {
+  const updated = getBodegaPedidos().filter(o => o.id !== id)
+  save(BODEGA_KEY, updated)
+  return updated
+}
+
+export function clearBodegaPedidos() {
+  localStorage.removeItem(BODEGA_KEY)
+}
+
+export async function recepcionarBatch(
+  orderIds: string[],
+  token:    string,
+): Promise<{ ok: boolean; updated: number }> {
+  try {
+    const res = await fetch(`${API}/api/driver/batch-receive`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ orderIds }),
+    })
+    const data = await res.json()
+    return { ok: data.ok, updated: data.updated ?? 0 }
+  } catch { return { ok: false, updated: 0 } }
+}
+
+export async function salirARuta(
+  orderIds: string[],
+  token:    string,
+): Promise<{ ok: boolean; updated: number }> {
+  try {
+    const res = await fetch(`${API}/api/driver/salir-ruta`, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body:    JSON.stringify({ orderIds }),
+    })
+    const data = await res.json()
+    return { ok: data.ok, updated: data.updated ?? 0 }
+  } catch { return { ok: false, updated: 0 } }
+}
+
+export async function fetchStores(token: string): Promise<{ id: string; name: string }[]> {
+  try {
+    const res = await fetch(`${API}/api/driver/stores`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+    const data = await res.json()
+    return data.ok ? data.data : []
+  } catch { return [] }
+}
