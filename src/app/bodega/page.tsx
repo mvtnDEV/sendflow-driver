@@ -29,6 +29,14 @@ export default function BodegaPage() {
     setPedidos([...updated])
   }
 
+  function limpiarLista() {
+    if (!confirm('¿Limpiar la lista? Esto solo borra los pedidos de la pantalla, no cambia ningún estado en el sistema.')) return
+    clearBodegaPedidos()
+    setPedidos([])
+    setMsg('')
+    setStep('lista')
+  }
+
   async function handleRecepcionar() {
     if (pedidos.length === 0) return
     setStep('recepcionando')
@@ -68,12 +76,19 @@ export default function BodegaPage() {
             style={{ width:38, height:38, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'white', fontSize:18, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             ←
           </button>
-          <div>
+          <div style={{ flex:1 }}>
             <div style={{ fontSize:18, fontWeight:700, color:'white' }}>Bodega</div>
             <div style={{ fontSize:12, color:'rgba(255,255,255,.45)' }}>
               {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} escaneado{pedidos.length !== 1 ? 's' : ''}
             </div>
           </div>
+          {/* Botón limpiar lista — solo visible en paso lista */}
+          {step === 'lista' && pedidos.length > 0 && (
+            <button onClick={limpiarLista}
+              style={{ padding:'6px 12px', background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', borderRadius:8, color:'rgba(255,255,255,.7)', fontSize:12, cursor:'pointer' }}>
+              🗑 Limpiar
+            </button>
+          )}
         </div>
       </div>
 
