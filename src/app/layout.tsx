@@ -1,14 +1,12 @@
 import type { Metadata, Viewport } from 'next'
 import './globals.css'
-
 export const metadata: Metadata = {
-  title:       'SendFlow Conductor',
+  title:       'Moovex Conductor',
   description: 'App de reparto para conductores',
   manifest:    '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'SF Driver' },
+  appleWebApp: { capable: true, statusBarStyle: 'black-translucent', title: 'Moovex' },
   other: { 'mobile-web-app-capable': 'yes' },
 }
-
 export const viewport: Viewport = {
   width:            'device-width',
   initialScale:     1,
@@ -17,7 +15,6 @@ export const viewport: Viewport = {
   themeColor:       '#0B1628',
   viewportFit:      'cover',
 }
-
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es">
