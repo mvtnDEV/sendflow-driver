@@ -51,14 +51,18 @@ export default function LoginPage() {
   return (
     <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', paddingTop:'calc(var(--sat) + 40px)', paddingBottom:'calc(var(--sab) + 24px)', paddingLeft:24, paddingRight:24 }}>
 
-      <div style={{ width:64, height:64, borderRadius:18, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+      {/* Header — logo y nombre */}
+      <div style={{ textAlign:'center', marginBottom:40 }}>
+        <div style={{ width:64, height:64, borderRadius:18, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
           <svg width="34" height="34" viewBox="0 0 28 28" fill="none">
             <path d="M4 22V8l10 8 10-8v14" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </div>
         <div style={{ fontSize:24, fontWeight:700, color:'white', letterSpacing:'-0.5px' }}>Moovex</div>
         <div style={{ fontSize:13, color:'rgba(255,255,255,.45)', marginTop:4 }}>App del Conductor</div>
+      </div>
 
+      {/* Selector conductor */}
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>Conductor</div>
         {loadingDrivers ? (
@@ -79,6 +83,7 @@ export default function LoginPage() {
         )}
       </div>
 
+      {/* PIN */}
       <div style={{ textAlign:'center', marginBottom:24 }}>
         <div style={{ fontSize:13, color:'rgba(255,255,255,.5)', marginBottom:14, textTransform:'uppercase', letterSpacing:'.06em' }}>Ingresa tu PIN</div>
         <div style={{ display:'flex', justifyContent:'center', gap:16 }}>
@@ -89,6 +94,7 @@ export default function LoginPage() {
         {error && <div style={{ marginTop:12, fontSize:14, color:'#F87171', fontWeight:500 }}>{error}</div>}
       </div>
 
+      {/* Teclado */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, maxWidth:320, margin:'0 auto', width:'100%' }}>
         {KEYS.flat().map((key, i) => {
           if (key === '') return <div key={i}/>
