@@ -51,13 +51,13 @@ export default function LoginPage() {
   return (
     <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', paddingTop:'calc(var(--sat) + 40px)', paddingBottom:'calc(var(--sab) + 24px)', paddingLeft:24, paddingRight:24 }}>
 
-      <div style={{ textAlign:'center', marginBottom:40 }}>
-        <div style={{ width:64, height:64, borderRadius:18, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
-          <svg width="34" height="34" viewBox="0 0 16 16" fill="white"><path d="M8 1L1 5v6l7 4 7-4V5L8 1zm0 2.2L13 6l-5 2.8L3 6l5-2.8zM2 7.2l5 2.8v4.6L2 11.8V7.2zm6 7.4V9.8l5-2.8v4.6L8 14.6z"/></svg>
+      <div style={{ width:64, height:64, borderRadius:18, background:'#2563EB', display:'flex', alignItems:'center', justifyContent:'center', margin:'0 auto 14px' }}>
+          <svg width="34" height="34" viewBox="0 0 28 28" fill="none">
+            <path d="M4 22V8l10 8 10-8v14" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
         </div>
-        <div style={{ fontSize:24, fontWeight:700, color:'white' }}>Send<span style={{ color:'#38BDF8' }}>Flow</span></div>
+        <div style={{ fontSize:24, fontWeight:700, color:'white', letterSpacing:'-0.5px' }}>Moovex</div>
         <div style={{ fontSize:13, color:'rgba(255,255,255,.45)', marginTop:4 }}>App del Conductor</div>
-      </div>
 
       <div style={{ marginBottom:28 }}>
         <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', marginBottom:8, textTransform:'uppercase', letterSpacing:'.06em' }}>Conductor</div>
