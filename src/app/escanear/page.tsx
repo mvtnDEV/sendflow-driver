@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   getDriverSession, fetchOrderByQr, fetchStores,
@@ -9,25 +9,46 @@ import {
   type ScannedOrder,
 } from '@/store'
 
+// ── Sonido de beep al escanear ──
+function playBeep(ok: boolean) {
+  try {
+    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const osc = ctx.createOscillator()
+    const gain = ctx.createGain()
+    osc.connect(gain)
+    gain.connect(ctx.destination)
+    osc.frequency.value = ok ? 1200 : 400
+    osc.type = 'square'
+    gain.gain.setValueAtTime(0.3, ctx.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + (ok ? 0.15 : 0.3))
+    osc.start(ctx.currentTime)
+    osc.stop(ctx.currentTime + (ok ? 0.15 : 0.3))
+  } catch {}
+}
+
 export default function EscanearPage() {
   const router   = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  const [token,    setToken]    = useState('')
-  const [stores,   setStores]   = useState<{ id: string; name: string }[]>([])
-  const [storeId,  setStoreId]  = useState('')
-  const [scanned,  setScanned]  = useState<ScannedOrder[]>([])
-  const [lastMsg,  setLastMsg]  = useState('')
-  const [lastOk,   setLastOk]   = useState(true)
-  const [noCamera, setNoCamera] = useState(false)
-  const [camError, setCamError] = useState('')
-  const [todayCount, setTodayCount] = useState(0)
+  const [token,        setToken]        = useState('')
+  const [stores,       setStores]       = useState<{ id: string; name: string }[]>([])
+  const [storeId,      setStoreId]      = useState('')
+  const [scanned,      setScanned]      = useState<ScannedOrder[]>([])
+  const [lastMsg,      setLastMsg]      = useState('')
+  const [lastOk,       setLastOk]       = useState(true)
+  const [noCamera,     setNoCamera]     = useState(false)
+  const [camError,     setCamError]     = useState('')
+  const [todayCount,   setTodayCount]   = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
-  const [scanning, setScanning] = useState(false)
+  const [cameraActive, setCameraActive] = useState(false) // ← cámara no abre hasta confirmar tienda
+  const [loadingStores, setLoadingStores] = useState(true)
 
-  const readerRef    = useRef<any>(null)
-  const controlsRef  = useRef<any>(null)
+  const readerRef     = useRef<any>(null)
+  const controlsRef   = useRef<any>(null)
   const processingRef = useRef(false)
+  const storeIdRef    = useRef(storeId)
+
+  useEffect(() => { storeIdRef.current = storeId }, [storeId])
 
   useEffect(() => {
     const d = getDriverSession()
@@ -37,31 +58,29 @@ export default function EscanearPage() {
     setTodayCount(getTodayScannedCount())
     setPendingCount(getPendingScans().length)
 
-    // Cargar tiendas (usa caché si disponible)
     fetchStores(d.token).then(s => {
       setStores(s)
       if (s.length > 0) setStoreId(s[0].id)
+      setLoadingStores(false)
     })
 
-    // Sincronizar pendientes offline si hay conexión
     if (navigator.onLine && d.token) {
-      syncPendingScans(d.token).then(n => {
-        if (n > 0) setPendingCount(0)
-      })
+      syncPendingScans(d.token).then(n => { if (n > 0) setPendingCount(0) })
     }
 
-    startCamera()
     return () => stopCamera()
   }, [])
 
   async function startCamera() {
     try {
-      setScanning(true)
-      const { BrowserQRCodeReader } = await import('@zxing/browser')
-      readerRef.current = new BrowserQRCodeReader()
+      setCameraActive(true)
+      const { BrowserQRCodeReader, BrowserCodeReader } = await import('@zxing/browser')
+      readerRef.current = new BrowserQRCodeReader(undefined, {
+        delayBetweenScanAttempts: 100, // más rápido — cada 100ms en lugar de 500ms
+        delayBetweenScanSuccess:  1500,
+      })
 
       const devices = await BrowserQRCodeReader.listVideoInputDevices()
-      // Preferir cámara trasera
       const backCam = devices.find(d =>
         d.label.toLowerCase().includes('back') ||
         d.label.toLowerCase().includes('rear') ||
@@ -74,21 +93,19 @@ export default function EscanearPage() {
         return
       }
 
-      const deviceId = backCam?.deviceId
-
       controlsRef.current = await readerRef.current.decodeFromVideoDevice(
-        deviceId,
+        backCam?.deviceId,
         videoRef.current!,
-        async (result: any, err: any) => {
+        async (result: any) => {
           if (result && !processingRef.current) {
             processingRef.current = true
             await handleScannedCode(result.getText())
-            setTimeout(() => { processingRef.current = false }, 2000)
+            setTimeout(() => { processingRef.current = false }, 1500)
           }
         }
       )
     } catch (err: any) {
-      setScanning(false)
+      setCameraActive(false)
       if (err?.name === 'NotAllowedError') {
         setNoCamera(true)
         setCamError('Debes permitir el acceso a la cámara para escanear')
@@ -107,6 +124,7 @@ export default function EscanearPage() {
       controlsRef.current?.stop()
       readerRef.current?.reset?.()
     } catch {}
+    setCameraActive(false)
   }
 
   async function handleScannedCode(raw: string) {
@@ -116,10 +134,10 @@ export default function EscanearPage() {
       code = url.searchParams.get('q') || raw
     } catch {}
 
-    // Verificar duplicado
     const existing = getBodegaPedidos().find(o => o.orderNumber === code || o.id === code)
     if (existing) {
-      vibrate([50, 30, 50]) // vibración de error
+      playBeep(false)
+      vibrate([50, 30, 50])
       setLastMsg(`⚠️ ${existing.orderNumber} ya fue escaneado`)
       setLastOk(false)
       setTimeout(() => setLastMsg(''), 2000)
@@ -128,8 +146,8 @@ export default function EscanearPage() {
 
     const order = await fetchOrderByQr(code, token)
     if (!order) {
-      // Verificar si está offline
       if (!navigator.onLine) {
+        playBeep(false)
         vibrate([100, 50, 100])
         setLastMsg(`📵 Sin conexión — guardado para sincronizar`)
         setLastOk(false)
@@ -137,6 +155,7 @@ export default function EscanearPage() {
         setPendingCount(p => p + 1)
         return
       }
+      playBeep(false)
       vibrate([50, 30, 50])
       setLastMsg(`❌ No encontrado: ${code}`)
       setLastOk(false)
@@ -157,12 +176,10 @@ export default function EscanearPage() {
 
     const updated = addBodegaPedido(scannedOrder)
     setScanned([...updated])
-
-    // Vibración de éxito + contador
+    playBeep(true)
     vibrate(150)
     const newCount = incrementTodayScannedCount()
     setTodayCount(newCount)
-
     setLastMsg(`✅ ${order.orderNumber} — ${order.customerName}`)
     setLastOk(true)
     setTimeout(() => setLastMsg(''), 2500)
@@ -173,20 +190,109 @@ export default function EscanearPage() {
     router.push('/bodega')
   }
 
+  // ── Pantalla de selección de tienda ──
+  if (!cameraActive) {
+    return (
+      <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', paddingTop:'calc(var(--sat) + 24px)', paddingBottom:'calc(var(--sab) + 24px)', padding:24 }}>
+
+        {/* Header */}
+        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:32 }}>
+          <button onClick={() => router.back()}
+            style={{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'white', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
+            ←
+          </button>
+          <div>
+            <div style={{ fontSize:18, fontWeight:700, color:'white' }}>Escanear pedidos</div>
+            <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:2 }}>Selecciona la tienda antes de escanear</div>
+          </div>
+        </div>
+
+        {/* Selector tienda */}
+        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', gap:16 }}>
+          <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>
+            Tienda
+          </div>
+
+          {loadingStores ? (
+            <div style={{ padding:20, background:'rgba(255,255,255,.08)', borderRadius:16, fontSize:14, color:'rgba(255,255,255,.5)', textAlign:'center' }}>
+              Cargando tiendas...
+            </div>
+          ) : stores.length === 0 ? (
+            <div style={{ padding:20, background:'rgba(255,59,48,.15)', borderRadius:16, fontSize:13, color:'#FF6B6B', textAlign:'center' }}>
+              No hay tiendas disponibles
+            </div>
+          ) : (
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {stores.map(s => (
+                <button key={s.id} onClick={() => setStoreId(s.id)}
+                  style={{
+                    padding:'18px 20px', borderRadius:16, border:'none', cursor:'pointer',
+                    textAlign:'left', fontSize:16, fontWeight:600, transition:'all .15s',
+                    background: storeId === s.id
+                      ? 'linear-gradient(135deg, #2563EB, #1D4ED8)'
+                      : 'rgba(255,255,255,.08)',
+                    color:      storeId === s.id ? 'white' : 'rgba(255,255,255,.7)',
+                    boxShadow:  storeId === s.id ? '0 4px 16px rgba(37,99,235,.4)' : 'none',
+                    display:'flex', alignItems:'center', justifyContent:'space-between',
+                  }}>
+                  <span>{s.name}</span>
+                  {storeId === s.id && <span style={{ fontSize:20 }}>✓</span>}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Info pedidos escaneados hoy */}
+          {todayCount > 0 && (
+            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,.06)', borderRadius:12, display:'flex', justifyContent:'space-between', marginTop:8 }}>
+              <span style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>Escaneados hoy</span>
+              <span style={{ fontSize:13, fontWeight:600, color:'#38BDF8' }}>{todayCount}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Botón abrir escáner */}
+        <button
+          onClick={startCamera}
+          disabled={!storeId || loadingStores}
+          style={{
+            width:'100%', padding:'18px',
+            background: !storeId || loadingStores
+              ? 'rgba(255,255,255,.1)'
+              : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+            border:'none', borderRadius:16,
+            fontSize:16, fontWeight:700, color:'white',
+            cursor: !storeId || loadingStores ? 'not-allowed' : 'pointer',
+            opacity: !storeId || loadingStores ? .5 : 1,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+            boxShadow: !storeId || loadingStores ? 'none' : '0 4px 20px rgba(37,99,235,.5)',
+            marginTop:16,
+          }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+            <rect x="7" y="7" width="10" height="10" rx="1"/>
+          </svg>
+          {!storeId ? 'Selecciona una tienda' : `Abrir escáner — ${stores.find(s => s.id === storeId)?.name}`}
+        </button>
+      </div>
+    )
+  }
+
+  // ── Pantalla del escáner ──
   return (
     <div style={{ height:'100dvh', background:'#000', display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
       {/* Header */}
       <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:10, paddingTop:'calc(var(--sat) + 14px)', paddingBottom:14, paddingLeft:20, paddingRight:20, background:'linear-gradient(to bottom, rgba(0,0,0,.9) 0%, transparent 100%)' }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-          <button onClick={() => { stopCamera(); router.back() }}
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+          <button onClick={() => { stopCamera(); }}
             style={{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'none', color:'white', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             ←
           </button>
           <div style={{ textAlign:'center' }}>
             <div style={{ fontSize:15, fontWeight:600, color:'white' }}>Escanear pedidos</div>
             <div style={{ fontSize:11, color:'rgba(255,255,255,.5)', marginTop:2 }}>
-              {scanned.length} escaneado{scanned.length !== 1 ? 's' : ''} · Hoy: {todayCount}
+              {stores.find(s => s.id === storeId)?.name} · {scanned.length} escaneado{scanned.length !== 1 ? 's' : ''} · Hoy: {todayCount}
               {pendingCount > 0 && <span style={{ color:'#FCD34D', marginLeft:6 }}>· {pendingCount} pendiente{pendingCount!==1?'s':''}</span>}
             </div>
           </div>
@@ -195,35 +301,23 @@ export default function EscanearPage() {
             Bodega →
           </button>
         </div>
-
-        {/* Selector tienda — solo si hay más de 1 */}
-        {stores.length > 1 && (
-          <select value={storeId} onChange={e => setStoreId(e.target.value)}
-            style={{ width:'100%', padding:'10px 14px', background:'rgba(255,255,255,.12)', border:'1px solid rgba(255,255,255,.2)', borderRadius:12, fontSize:14, color:'white', outline:'none', fontFamily:'inherit', appearance:'none', WebkitAppearance:'none' }}>
-            {stores.map(s => (
-              <option key={s.id} value={s.id} style={{ background:'#0B1628', color:'white' }}>{s.name}</option>
-            ))}
-          </select>
-        )}
       </div>
 
       {/* Cámara */}
       <video ref={videoRef} muted playsInline autoPlay
         style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
 
-      {/* Marco QR — más grande y con animación */}
+      {/* Marco QR */}
       <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
         <div style={{ position:'relative', width:260, height:260 }}>
-          {/* Esquinas */}
           {[
-            { top:0,    left:0,  borderTop:'3px solid #38BDF8', borderLeft:'3px solid #38BDF8',   borderRadius:'4px 0 0 0' },
-            { top:0,    right:0, borderTop:'3px solid #38BDF8', borderRight:'3px solid #38BDF8',  borderRadius:'0 4px 0 0' },
+            { top:0,    left:0,  borderTop:'3px solid #38BDF8', borderLeft:'3px solid #38BDF8',    borderRadius:'4px 0 0 0' },
+            { top:0,    right:0, borderTop:'3px solid #38BDF8', borderRight:'3px solid #38BDF8',   borderRadius:'0 4px 0 0' },
             { bottom:0, left:0,  borderBottom:'3px solid #38BDF8', borderLeft:'3px solid #38BDF8', borderRadius:'0 0 0 4px' },
             { bottom:0, right:0, borderBottom:'3px solid #38BDF8', borderRight:'3px solid #38BDF8',borderRadius:'0 0 4px 0' },
           ].map((c, i) => (
             <div key={i} style={{ position:'absolute', width:40, height:40, ...c } as any}/>
           ))}
-          {/* Línea de escaneo animada */}
           <div style={{ position:'absolute', left:8, right:8, height:2, background:'linear-gradient(90deg, transparent, #38BDF8, transparent)', animation:'scanLine 2s ease-in-out infinite', top:'50%' }}/>
         </div>
       </div>
