@@ -9,7 +9,6 @@ import {
   type ScannedOrder,
 } from '@/store'
 
-// ── Sonido de beep al escanear ──
 function playBeep(ok: boolean) {
   try {
     const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
@@ -30,17 +29,17 @@ export default function EscanearPage() {
   const router   = useRouter()
   const videoRef = useRef<HTMLVideoElement>(null)
 
-  const [token,        setToken]        = useState('')
-  const [stores,       setStores]       = useState<{ id: string; name: string }[]>([])
-  const [storeId,      setStoreId]      = useState('')
-  const [scanned,      setScanned]      = useState<ScannedOrder[]>([])
-  const [lastMsg,      setLastMsg]      = useState('')
-  const [lastOk,       setLastOk]       = useState(true)
-  const [noCamera,     setNoCamera]     = useState(false)
-  const [camError,     setCamError]     = useState('')
-  const [todayCount,   setTodayCount]   = useState(0)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [cameraActive, setCameraActive] = useState(false) // ← cámara no abre hasta confirmar tienda
+  const [token,         setToken]         = useState('')
+  const [stores,        setStores]        = useState<{ id: string; name: string }[]>([])
+  const [storeId,       setStoreId]       = useState('')
+  const [scanned,       setScanned]       = useState<ScannedOrder[]>([])
+  const [lastMsg,       setLastMsg]       = useState('')
+  const [lastOk,        setLastOk]        = useState(true)
+  const [noCamera,      setNoCamera]      = useState(false)
+  const [camError,      setCamError]      = useState('')
+  const [todayCount,    setTodayCount]    = useState(0)
+  const [pendingCount,  setPendingCount]  = useState(0)
+  const [cameraActive,  setCameraActive]  = useState(false)
   const [loadingStores, setLoadingStores] = useState(true)
 
   const readerRef     = useRef<any>(null)
@@ -74,9 +73,9 @@ export default function EscanearPage() {
   async function startCamera() {
     try {
       setCameraActive(true)
-      const { BrowserQRCodeReader, BrowserCodeReader } = await import('@zxing/browser')
+      const { BrowserQRCodeReader } = await import('@zxing/browser')
       readerRef.current = new BrowserQRCodeReader(undefined, {
-        delayBetweenScanAttempts: 100, // más rápido — cada 100ms en lugar de 500ms
+        delayBetweenScanAttempts: 100,
         delayBetweenScanSuccess:  1500,
       })
 
@@ -193,87 +192,111 @@ export default function EscanearPage() {
   // ── Pantalla de selección de tienda ──
   if (!cameraActive) {
     return (
-      <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', paddingTop:'calc(var(--sat) + 24px)', paddingBottom:'calc(var(--sab) + 24px)', padding:24 }}>
+      <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
-        {/* Header */}
-        <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:32 }}>
-          <button onClick={() => router.back()}
-            style={{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'white', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
-            ←
-          </button>
-          <div>
-            <div style={{ fontSize:18, fontWeight:700, color:'white' }}>Escanear pedidos</div>
-            <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:2 }}>Selecciona la tienda antes de escanear</div>
+        {/* Header fijo */}
+        <div style={{ padding:'calc(var(--sat, 0px) + 20px) 20px 16px', borderBottom:'1px solid rgba(255,255,255,.08)', flexShrink:0 }}>
+          <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+            <button onClick={() => router.back()}
+              style={{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.1)', border:'none', color:'white', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+              ←
+            </button>
+            <div>
+              <div style={{ fontSize:18, fontWeight:700, color:'white' }}>Escanear pedidos</div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:2 }}>
+                Selecciona la tienda para continuar
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Selector tienda */}
-        <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', gap:16 }}>
-          <div style={{ fontSize:12, color:'rgba(255,255,255,.5)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>
-            Tienda
-          </div>
-
+        {/* Lista de tiendas — con scroll */}
+        <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
           {loadingStores ? (
-            <div style={{ padding:20, background:'rgba(255,255,255,.08)', borderRadius:16, fontSize:14, color:'rgba(255,255,255,.5)', textAlign:'center' }}>
+            <div style={{ padding:32, fontSize:14, color:'rgba(255,255,255,.4)', textAlign:'center' }}>
               Cargando tiendas...
             </div>
           ) : stores.length === 0 ? (
-            <div style={{ padding:20, background:'rgba(255,59,48,.15)', borderRadius:16, fontSize:13, color:'#FF6B6B', textAlign:'center' }}>
+            <div style={{ padding:24, background:'rgba(255,59,48,.15)', borderRadius:16, fontSize:13, color:'#FF6B6B', textAlign:'center' }}>
               No hay tiendas disponibles
             </div>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+            <>
+              <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>
+                {stores.length} tienda{stores.length !== 1 ? 's' : ''} disponible{stores.length !== 1 ? 's' : ''}
+              </div>
               {stores.map(s => (
                 <button key={s.id} onClick={() => setStoreId(s.id)}
                   style={{
-                    padding:'18px 20px', borderRadius:16, border:'none', cursor:'pointer',
-                    textAlign:'left', fontSize:16, fontWeight:600, transition:'all .15s',
+                    padding:'16px 18px', borderRadius:14,
+                    border: storeId === s.id ? 'none' : '1px solid rgba(255,255,255,.1)',
+                    cursor:'pointer', textAlign:'left',
                     background: storeId === s.id
                       ? 'linear-gradient(135deg, #2563EB, #1D4ED8)'
-                      : 'rgba(255,255,255,.08)',
-                    color:      storeId === s.id ? 'white' : 'rgba(255,255,255,.7)',
-                    boxShadow:  storeId === s.id ? '0 4px 16px rgba(37,99,235,.4)' : 'none',
+                      : 'rgba(255,255,255,.06)',
+                    color: storeId === s.id ? 'white' : 'rgba(255,255,255,.7)',
+                    boxShadow: storeId === s.id ? '0 4px 16px rgba(37,99,235,.4)' : 'none',
                     display:'flex', alignItems:'center', justifyContent:'space-between',
+                    transition:'all .15s', flexShrink:0, width:'100%',
                   }}>
-                  <span>{s.name}</span>
-                  {storeId === s.id && <span style={{ fontSize:20 }}>✓</span>}
+                  <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                    <div style={{
+                      width:36, height:36, borderRadius:10, flexShrink:0,
+                      background: storeId === s.id ? 'rgba(255,255,255,.2)' : 'rgba(255,255,255,.08)',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:13, fontWeight:700, color:'white',
+                    }}>
+                      {s.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <span style={{ fontSize:15, fontWeight:600 }}>{s.name}</span>
+                  </div>
+                  {storeId === s.id && (
+                    <div style={{ width:24, height:24, borderRadius:'50%', background:'rgba(255,255,255,.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>
+                      ✓
+                    </div>
+                  )}
                 </button>
               ))}
-            </div>
+            </>
           )}
 
-          {/* Info pedidos escaneados hoy */}
           {todayCount > 0 && (
-            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,.06)', borderRadius:12, display:'flex', justifyContent:'space-between', marginTop:8 }}>
-              <span style={{ fontSize:13, color:'rgba(255,255,255,.5)' }}>Escaneados hoy</span>
+            <div style={{ padding:'12px 16px', background:'rgba(255,255,255,.05)', borderRadius:12, display:'flex', justifyContent:'space-between', marginTop:4 }}>
+              <span style={{ fontSize:13, color:'rgba(255,255,255,.4)' }}>Escaneados hoy</span>
               <span style={{ fontSize:13, fontWeight:600, color:'#38BDF8' }}>{todayCount}</span>
             </div>
           )}
         </div>
 
-        {/* Botón abrir escáner */}
-        <button
-          onClick={startCamera}
-          disabled={!storeId || loadingStores}
-          style={{
-            width:'100%', padding:'18px',
-            background: !storeId || loadingStores
-              ? 'rgba(255,255,255,.1)'
-              : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
-            border:'none', borderRadius:16,
-            fontSize:16, fontWeight:700, color:'white',
-            cursor: !storeId || loadingStores ? 'not-allowed' : 'pointer',
-            opacity: !storeId || loadingStores ? .5 : 1,
-            display:'flex', alignItems:'center', justifyContent:'center', gap:10,
-            boxShadow: !storeId || loadingStores ? 'none' : '0 4px 20px rgba(37,99,235,.5)',
-            marginTop:16,
-          }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
-            <rect x="7" y="7" width="10" height="10" rx="1"/>
-          </svg>
-          {!storeId ? 'Selecciona una tienda' : `Abrir escáner — ${stores.find(s => s.id === storeId)?.name}`}
-        </button>
+        {/* Botón confirmar — fijo abajo */}
+        <div style={{ padding:'16px 20px', paddingBottom:'calc(var(--sab, 0px) + 16px)', borderTop:'1px solid rgba(255,255,255,.08)', background:'rgba(11,22,40,.95)', flexShrink:0 }}>
+          {storeId && (
+            <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', textAlign:'center', marginBottom:10 }}>
+              Tienda seleccionada: <span style={{ color:'white', fontWeight:600 }}>{stores.find(s => s.id === storeId)?.name}</span>
+            </div>
+          )}
+          <button
+            onClick={startCamera}
+            disabled={!storeId || loadingStores}
+            style={{
+              width:'100%', padding:'18px',
+              background: !storeId || loadingStores
+                ? 'rgba(255,255,255,.08)'
+                : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+              border:'none', borderRadius:16,
+              fontSize:16, fontWeight:700, color:'white',
+              cursor: !storeId || loadingStores ? 'not-allowed' : 'pointer',
+              opacity: !storeId || loadingStores ? .4 : 1,
+              display:'flex', alignItems:'center', justifyContent:'center', gap:10,
+              boxShadow: !storeId || loadingStores ? 'none' : '0 4px 20px rgba(37,99,235,.5)',
+            }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M3 7V5a2 2 0 0 1 2-2h2M17 3h2a2 2 0 0 1 2 2v2M21 17v2a2 2 0 0 1-2 2h-2M7 21H5a2 2 0 0 1-2-2v-2"/>
+              <rect x="7" y="7" width="10" height="10" rx="1"/>
+            </svg>
+            {!storeId ? 'Selecciona una tienda' : 'Confirmar y abrir escáner'}
+          </button>
+        </div>
       </div>
     )
   }
@@ -283,9 +306,9 @@ export default function EscanearPage() {
     <div style={{ height:'100dvh', background:'#000', display:'flex', flexDirection:'column', overflow:'hidden' }}>
 
       {/* Header */}
-      <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:10, paddingTop:'calc(var(--sat) + 14px)', paddingBottom:14, paddingLeft:20, paddingRight:20, background:'linear-gradient(to bottom, rgba(0,0,0,.9) 0%, transparent 100%)' }}>
+      <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:10, paddingTop:'calc(var(--sat, 0px) + 14px)', paddingBottom:14, paddingLeft:20, paddingRight:20, background:'linear-gradient(to bottom, rgba(0,0,0,.9) 0%, transparent 100%)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-          <button onClick={() => { stopCamera(); }}
+          <button onClick={() => stopCamera()}
             style={{ width:42, height:42, borderRadius:'50%', background:'rgba(255,255,255,.15)', border:'none', color:'white', fontSize:20, cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center' }}>
             ←
           </button>
@@ -337,7 +360,7 @@ export default function EscanearPage() {
       )}
 
       {/* Panel inferior */}
-      <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:10, paddingBottom:'calc(var(--sab) + 16px)', paddingTop:16, paddingLeft:16, paddingRight:16, background:'linear-gradient(to top, rgba(0,0,0,.95) 0%, transparent 100%)' }}>
+      <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:10, paddingBottom:'calc(var(--sab, 0px) + 16px)', paddingTop:16, paddingLeft:16, paddingRight:16, background:'linear-gradient(to top, rgba(0,0,0,.95) 0%, transparent 100%)' }}>
         {scanned.length > 0 && (
           <div style={{ marginBottom:12 }}>
             {[...scanned].reverse().slice(0, 3).map(o => (
