@@ -57,7 +57,12 @@ export default function EscanearPage() {
     setTodayCount(getTodayScannedCount())
     setPendingCount(getPendingScans().length)
 
+    // ── Cargar tiendas — detectar sesión expirada ──
     fetchStores(d.token).then(s => {
+      if (s === 'SESSION_EXPIRED') {
+        router.replace('/login')
+        return
+      }
       setStores(s)
       if (s.length > 0) setStoreId(s[0].id)
       setLoadingStores(false)
