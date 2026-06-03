@@ -242,7 +242,6 @@ export async function fetchOrderByQr(qrCode: string, token: string): Promise<Ord
       addressNotes: data.data.addressNotes ?? '',
     }
   } catch {
-    // Modo offline — guardar para sincronizar después
     addPendingScan(qrCode)
     return null
   }
@@ -286,7 +285,7 @@ export async function saveEvidence(
 
 // ─── Tiendas con caché ────────────────────────────────────────────────────────
 
-export async function fetchStores(token: string): Promise<{ id: string; name: string } [] | 'SESSION_EXPIRED'> {
+export async function fetchStores(token: string): Promise<{ id: string; name: string }[] | 'SESSION_EXPIRED'> {
   const cached = getStoredStores()
   if (cached) return cached
 
@@ -295,10 +294,12 @@ export async function fetchStores(token: string): Promise<{ id: string; name: st
       headers: { Authorization: `Bearer ${token}` },
     })
 
-    // Token expirado o no autorizado — sesión inválida
+    // Token expirado — limpiar sesión y caché
     if (res.status === 401) {
       clearDriverSession()
-      if (typeof window !== 'undefined') localStorage.removeItem(STORES_CACHE_KEY)
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORES_CACHE_KEY)
+      }
       return 'SESSION_EXPIRED'
     }
 
