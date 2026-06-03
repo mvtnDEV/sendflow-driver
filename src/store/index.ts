@@ -286,8 +286,7 @@ export async function saveEvidence(
 
 // ─── Tiendas con caché ────────────────────────────────────────────────────────
 
-export async function fetchStores(token: string): Promise<{ id: string; name: string }[]> {
-  // Intentar caché primero
+export async function fetchStores(token: string): Promise<{ id: string; name: string } [] | 'SESSION_EXPIRED'> {
   const cached = getStoredStores()
   if (cached) return cached
 
@@ -295,6 +294,14 @@ export async function fetchStores(token: string): Promise<{ id: string; name: st
     const res = await fetch(`${API}/api/driver/stores`, {
       headers: { Authorization: `Bearer ${token}` },
     })
+
+    // Token expirado o no autorizado — sesión inválida
+    if (res.status === 401) {
+      clearDriverSession()
+      if (typeof window !== 'undefined') localStorage.removeItem(STORES_CACHE_KEY)
+      return 'SESSION_EXPIRED'
+    }
+
     const data = await res.json()
     if (data.ok) {
       saveStoresToCache(data.data)
