@@ -11,8 +11,8 @@ import {
 
 function playBeep(ok: boolean) {
   try {
-    const ctx = new (window.AudioContext || (window as any).webkitAudioContext)()
-    const osc = ctx.createOscillator()
+    const ctx  = new (window.AudioContext || (window as any).webkitAudioContext)()
+    const osc  = ctx.createOscillator()
     const gain = ctx.createGain()
     osc.connect(gain)
     gain.connect(ctx.destination)
@@ -56,22 +56,15 @@ export default function EscanearPage() {
     setScanned(getBodegaPedidos())
     setTodayCount(getTodayScannedCount())
     setPendingCount(getPendingScans().length)
-
-    // ── Cargar tiendas — detectar sesión expirada ──
     fetchStores(d.token).then(s => {
-      if (s === 'SESSION_EXPIRED') {
-        router.replace('/login')
-        return
-      }
+      if (s === 'SESSION_EXPIRED') { router.replace('/login'); return }
       setStores(s)
       if (s.length > 0) setStoreId(s[0].id)
       setLoadingStores(false)
     })
-
     if (navigator.onLine && d.token) {
       syncPendingScans(d.token).then(n => { if (n > 0) setPendingCount(0) })
     }
-
     return () => stopCamera()
   }, [])
 
@@ -87,7 +80,7 @@ export default function EscanearPage() {
       hints.set(DecodeHintType.TRY_HARDER, true)
 
       readerRef.current = new BrowserMultiFormatReader(hints, {
-        delayBetweenScanAttempts: 50,   // más agresivo — 50ms en vez de 100ms
+        delayBetweenScanAttempts: 50,
         delayBetweenScanSuccess:  1500,
       })
 
@@ -100,7 +93,6 @@ export default function EscanearPage() {
         return
       }
 
-      // Preferir cámara trasera, fallback a la última disponible
       const backCam = devices.find(d =>
         d.label.toLowerCase().includes('back') ||
         d.label.toLowerCase().includes('rear') ||
@@ -108,14 +100,13 @@ export default function EscanearPage() {
         d.label.toLowerCase().includes('environment')
       ) ?? devices[devices.length - 1]
 
-      // Solicitar la cámara con resolución óptima para QR
+      // Solicitar stream con resolución óptima para QR
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          deviceId:   backCam.deviceId ? { exact: backCam.deviceId } : undefined,
+          deviceId:  backCam.deviceId ? { exact: backCam.deviceId } : undefined,
           facingMode: 'environment',
-          width:      { ideal: 1280 },
-          height:     { ideal: 720 },
-          focusMode:  'continuous' as any,
+          width:  { ideal: 1280 },
+          height: { ideal: 720 },
         },
       })
 
@@ -127,7 +118,7 @@ export default function EscanearPage() {
       controlsRef.current = await readerRef.current.decodeFromStream(
         stream,
         videoRef.current!,
-        async (result: any, err: any) => {
+        async (result: any, _err: any) => {
           if (result && !processingRef.current) {
             processingRef.current = true
             await handleScannedCode(result.getText())
@@ -155,6 +146,12 @@ export default function EscanearPage() {
     try {
       controlsRef.current?.stop()
       readerRef.current?.reset?.()
+      // Limpiar stream para liberar el hardware de la cámara
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream
+        stream.getTracks().forEach(track => track.stop())
+        videoRef.current.srcObject = null
+      }
     } catch {}
     setCameraActive(false)
   }
@@ -226,8 +223,6 @@ export default function EscanearPage() {
   if (!cameraActive) {
     return (
       <div style={{ height:'100dvh', background:'linear-gradient(160deg, #0B1628 0%, #162544 100%)', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
-        {/* Header fijo */}
         <div style={{ padding:'calc(var(--sat, 0px) + 20px) 20px 16px', borderBottom:'1px solid rgba(255,255,255,.08)', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:12 }}>
             <button onClick={() => router.back()}
@@ -236,23 +231,16 @@ export default function EscanearPage() {
             </button>
             <div>
               <div style={{ fontSize:18, fontWeight:700, color:'white' }}>Escanear pedidos</div>
-              <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:2 }}>
-                Selecciona la tienda para continuar
-              </div>
+              <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', marginTop:2 }}>Selecciona la tienda para continuar</div>
             </div>
           </div>
         </div>
 
-        {/* Lista de tiendas — con scroll */}
         <div style={{ flex:1, overflowY:'auto', padding:'16px 20px', display:'flex', flexDirection:'column', gap:10 }}>
           {loadingStores ? (
-            <div style={{ padding:32, fontSize:14, color:'rgba(255,255,255,.4)', textAlign:'center' }}>
-              Cargando tiendas...
-            </div>
+            <div style={{ padding:32, fontSize:14, color:'rgba(255,255,255,.4)', textAlign:'center' }}>Cargando tiendas...</div>
           ) : stores.length === 0 ? (
-            <div style={{ padding:24, background:'rgba(255,59,48,.15)', borderRadius:16, fontSize:13, color:'#FF6B6B', textAlign:'center' }}>
-              No hay tiendas disponibles
-            </div>
+            <div style={{ padding:24, background:'rgba(255,59,48,.15)', borderRadius:16, fontSize:13, color:'#FF6B6B', textAlign:'center' }}>No hay tiendas disponibles</div>
           ) : (
             <>
               <div style={{ fontSize:11, color:'rgba(255,255,255,.35)', textTransform:'uppercase', letterSpacing:'.08em', marginBottom:4 }}>
@@ -264,9 +252,7 @@ export default function EscanearPage() {
                     padding:'16px 18px', borderRadius:14,
                     border: storeId === s.id ? 'none' : '1px solid rgba(255,255,255,.1)',
                     cursor:'pointer', textAlign:'left',
-                    background: storeId === s.id
-                      ? 'linear-gradient(135deg, #2563EB, #1D4ED8)'
-                      : 'rgba(255,255,255,.06)',
+                    background: storeId === s.id ? 'linear-gradient(135deg, #2563EB, #1D4ED8)' : 'rgba(255,255,255,.06)',
                     color: storeId === s.id ? 'white' : 'rgba(255,255,255,.7)',
                     boxShadow: storeId === s.id ? '0 4px 16px rgba(37,99,235,.4)' : 'none',
                     display:'flex', alignItems:'center', justifyContent:'space-between',
@@ -284,15 +270,12 @@ export default function EscanearPage() {
                     <span style={{ fontSize:15, fontWeight:600 }}>{s.name}</span>
                   </div>
                   {storeId === s.id && (
-                    <div style={{ width:24, height:24, borderRadius:'50%', background:'rgba(255,255,255,.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>
-                      ✓
-                    </div>
+                    <div style={{ width:24, height:24, borderRadius:'50%', background:'rgba(255,255,255,.25)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, flexShrink:0 }}>✓</div>
                   )}
                 </button>
               ))}
             </>
           )}
-
           {todayCount > 0 && (
             <div style={{ padding:'12px 16px', background:'rgba(255,255,255,.05)', borderRadius:12, display:'flex', justifyContent:'space-between', marginTop:4 }}>
               <span style={{ fontSize:13, color:'rgba(255,255,255,.4)' }}>Escaneados hoy</span>
@@ -301,7 +284,6 @@ export default function EscanearPage() {
           )}
         </div>
 
-        {/* Botón confirmar — fijo abajo */}
         <div style={{ padding:'16px 20px', paddingBottom:'calc(var(--sab, 0px) + 16px)', borderTop:'1px solid rgba(255,255,255,.08)', background:'rgba(11,22,40,.95)', flexShrink:0 }}>
           {storeId && (
             <div style={{ fontSize:12, color:'rgba(255,255,255,.4)', textAlign:'center', marginBottom:10 }}>
@@ -313,9 +295,7 @@ export default function EscanearPage() {
             disabled={!storeId || loadingStores}
             style={{
               width:'100%', padding:'18px',
-              background: !storeId || loadingStores
-                ? 'rgba(255,255,255,.08)'
-                : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
+              background: !storeId || loadingStores ? 'rgba(255,255,255,.08)' : 'linear-gradient(135deg, #2563EB, #1D4ED8)',
               border:'none', borderRadius:16,
               fontSize:16, fontWeight:700, color:'white',
               cursor: !storeId || loadingStores ? 'not-allowed' : 'pointer',
@@ -337,8 +317,6 @@ export default function EscanearPage() {
   // ── Pantalla del escáner ──
   return (
     <div style={{ height:'100dvh', background:'#000', display:'flex', flexDirection:'column', overflow:'hidden' }}>
-
-      {/* Header */}
       <div style={{ position:'absolute', top:0, left:0, right:0, zIndex:10, paddingTop:'calc(var(--sat, 0px) + 14px)', paddingBottom:14, paddingLeft:20, paddingRight:20, background:'linear-gradient(to bottom, rgba(0,0,0,.9) 0%, transparent 100%)' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
           <button onClick={() => stopCamera()}
@@ -359,11 +337,9 @@ export default function EscanearPage() {
         </div>
       </div>
 
-      {/* Cámara */}
       <video ref={videoRef} muted playsInline autoPlay
         style={{ width:'100%', height:'100%', objectFit:'cover' }}/>
 
-      {/* Marco QR */}
       <div style={{ position:'absolute', inset:0, display:'flex', alignItems:'center', justifyContent:'center', pointerEvents:'none' }}>
         <div style={{ position:'relative', width:260, height:260 }}>
           {[
@@ -378,7 +354,6 @@ export default function EscanearPage() {
         </div>
       </div>
 
-      {/* Mensaje último escaneo */}
       {lastMsg && (
         <div style={{ position:'absolute', top:'48%', left:20, right:20, zIndex:20 }}>
           <div style={{
@@ -392,7 +367,6 @@ export default function EscanearPage() {
         </div>
       )}
 
-      {/* Panel inferior */}
       <div style={{ position:'absolute', bottom:0, left:0, right:0, zIndex:10, paddingBottom:'calc(var(--sab, 0px) + 16px)', paddingTop:16, paddingLeft:16, paddingRight:16, background:'linear-gradient(to top, rgba(0,0,0,.95) 0%, transparent 100%)' }}>
         {scanned.length > 0 && (
           <div style={{ marginBottom:12 }}>
@@ -407,7 +381,6 @@ export default function EscanearPage() {
             ))}
           </div>
         )}
-
         {scanned.length > 0 ? (
           <button onClick={irABodega}
             style={{ width:'100%', padding:'15px', background:'#2563EB', border:'none', borderRadius:14, fontSize:15, fontWeight:600, color:'white', cursor:'pointer' }}>
@@ -418,7 +391,6 @@ export default function EscanearPage() {
         )}
       </div>
 
-      {/* Sin cámara */}
       {noCamera && (
         <div style={{ position:'absolute', inset:0, background:'#0B1628', display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:32, gap:16, zIndex:20 }}>
           <div style={{ fontSize:56 }}>📷</div>
