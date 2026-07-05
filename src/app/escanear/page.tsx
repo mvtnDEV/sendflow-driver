@@ -72,8 +72,9 @@ export default function EscanearPage() {
     try {
       setCameraActive(true)
 
-      // ── BrowserMultiFormatReader con hints QR-only es 3-4x más rápido en mobile ──
-      const { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } = await import('@zxing/browser')
+      // ── Importar desde los paquetes correctos ──
+      const { BrowserMultiFormatReader, BarcodeFormat } = await import('@zxing/browser')
+      const { DecodeHintType } = await import('@zxing/library')
 
       const hints = new Map()
       hints.set(DecodeHintType.POSSIBLE_FORMATS, [BarcodeFormat.QR_CODE])
@@ -100,13 +101,12 @@ export default function EscanearPage() {
         d.label.toLowerCase().includes('environment')
       ) ?? devices[devices.length - 1]
 
-      // Solicitar stream con resolución óptima para QR
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          deviceId:  backCam.deviceId ? { exact: backCam.deviceId } : undefined,
+          deviceId:   backCam.deviceId ? { exact: backCam.deviceId } : undefined,
           facingMode: 'environment',
-          width:  { ideal: 1280 },
-          height: { ideal: 720 },
+          width:      { ideal: 1280 },
+          height:     { ideal: 720 },
         },
       })
 
@@ -146,7 +146,6 @@ export default function EscanearPage() {
     try {
       controlsRef.current?.stop()
       readerRef.current?.reset?.()
-      // Limpiar stream para liberar el hardware de la cámara
       if (videoRef.current?.srcObject) {
         const stream = videoRef.current.srcObject as MediaStream
         stream.getTracks().forEach(track => track.stop())
