@@ -59,7 +59,10 @@ export default function BodegaPage() {
       setMsg(`🚚 ${result.updated} pedido${result.updated !== 1 ? 's' : ''} en camino`)
       clearBodegaPedidos()
       setStep('enruta')
-      setTimeout(() => router.replace('/pedidos'), 2500)
+      // ── Dar tiempo al servidor para procesar los estados antes de navegar ──
+      setTimeout(() => {
+        router.replace('/pedidos')
+      }, 2500)
     } else {
       setMsg('❌ Error al salir a ruta. Intenta de nuevo.')
       setStep('recepcionado')
@@ -68,7 +71,6 @@ export default function BodegaPage() {
 
   return (
     <div style={{ height:'100dvh', display:'flex', flexDirection:'column', background:'#F0F4F8', overflow:'hidden' }}>
-
       {/* Header */}
       <div style={{ background:'#0B1628', paddingTop:'calc(var(--sat) + 16px)', paddingBottom:16, paddingLeft:20, paddingRight:20, flexShrink:0 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:4 }}>
@@ -82,7 +84,6 @@ export default function BodegaPage() {
               {pedidos.length} pedido{pedidos.length !== 1 ? 's' : ''} escaneado{pedidos.length !== 1 ? 's' : ''}
             </div>
           </div>
-          {/* Botón limpiar lista — solo visible en paso lista */}
           {step === 'lista' && pedidos.length > 0 && (
             <button onClick={limpiarLista}
               style={{ padding:'6px 12px', background:'rgba(255,255,255,.1)', border:'1px solid rgba(255,255,255,.15)', borderRadius:8, color:'rgba(255,255,255,.7)', fontSize:12, cursor:'pointer' }}>
@@ -148,7 +149,6 @@ export default function BodegaPage() {
       {/* Botones de acción */}
       {pedidos.length > 0 && (
         <div style={{ position:'fixed', bottom:0, left:0, right:0, background:'white', borderTop:'1px solid #E2E8F0', padding:`16px 16px calc(var(--sab) + 16px)`, display:'flex', flexDirection:'column', gap:10 }}>
-
           {step === 'lista' && (
             <>
               <button onClick={() => router.push('/escanear')}
@@ -161,26 +161,22 @@ export default function BodegaPage() {
               </button>
             </>
           )}
-
           {step === 'recepcionando' && (
             <div style={{ padding:'14px', background:'#EFF6FF', borderRadius:12, fontSize:14, color:'#1D4ED8', textAlign:'center', fontWeight:500 }}>
               Recepcionando pedidos...
             </div>
           )}
-
           {step === 'recepcionado' && (
             <button onClick={handleSalirARuta}
               style={{ padding:'16px', background:'#16A34A', border:'none', borderRadius:12, fontSize:16, fontWeight:700, color:'white', cursor:'pointer' }}>
               🚚 Salir a ruta
             </button>
           )}
-
           {step === 'saliendo' && (
             <div style={{ padding:'14px', background:'#F0FDF4', borderRadius:12, fontSize:14, color:'#166534', textAlign:'center', fontWeight:500 }}>
               Poniendo pedidos en camino...
             </div>
           )}
-
           {step === 'enruta' && (
             <div style={{ padding:'14px', background:'#F0FDF4', borderRadius:12, fontSize:15, color:'#166534', textAlign:'center', fontWeight:600 }}>
               🚚 ¡En ruta! Redirigiendo...
